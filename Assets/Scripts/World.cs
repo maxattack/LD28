@@ -28,7 +28,7 @@ public class World : GameBehaviour {
 		var floorObjects = GameObject.FindGameObjectsWithTag( FloorTag );
 		var locToNode = new Dictionary<Location, GameObject>();
 		foreach(GameObject go in floorObjects) {
-			locToNode[ Location.Approx(go.transform.position) ] = go;
+			locToNode[ Location.Approx(go.transform.localPosition) ] = go;
 		}
 		
 		// helper method
@@ -59,8 +59,8 @@ public class World : GameBehaviour {
 			}
 			// create the box
 			var box = obj.AddComponent<BoxCollider2D>();
-			box.size = vec(1 + xmax - xmin, 1f);
-			box.center = vec(0.5f * box.size.x - 0.5f, 0f);
+			box.size = vec(1 + xmax - xmin, 1f);//, 2);
+			box.center = vec(0.5f * box.size.x - 0.5f, 0f);//, 0);
 		}
 		
 	}

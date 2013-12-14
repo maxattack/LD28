@@ -30,7 +30,7 @@ public class SpritePostprocessor : AssetPostprocessor {
 			var importer = assetImporter as TextureImporter;
 			importer.textureFormat = TextureImporterFormat.ARGB32;
 			importer.textureType = TextureImporterType.Sprite;
-			importer.spritePixelsToUnits = 32;
+			importer.spritePixelsToUnits = 12;
 			importer.filterMode = FilterMode.Point;
 			
 			
@@ -55,7 +55,7 @@ public class SpritePostprocessor : AssetPostprocessor {
 				for(int i=0; i<frameCount; ++i) {
 					metaData[i].name = string.Format("{0}_frame{1}", name, i);
 					metaData[i].rect = new Rect(
-						0, i * frameHeight, width, frameHeight
+						0, (frameCount - i - 1) * frameHeight, width, frameHeight
 					);
 					metaData[i].pivot = new Vector2(
 						0.5f * width, 0.5f * frameHeight

@@ -18,8 +18,15 @@ public class GameBehaviour : CustomBehaviour {
 	
 	// A bunch of static methods take save on typing... :P
 	
-	public static string FloorTag = "Floor";	
+	public const string FloorTag = "Floor";	
+	
+	public const int BackgroundLayer = 8;
+	public const int BackgroundMask = 1 << 8;
 	
 	public static Location Loc(int x, int y) { return new Location(x, y); }
-
+	
+	public float deltaTime { get { return Mathf.Min(Time.deltaTime, 1f/40f);} }
+	
+	public const float collisionSlop = 0.025f; // how much we shake off each collision surface to avoid error accumulation
+	
 }
