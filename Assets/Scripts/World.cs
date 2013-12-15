@@ -10,6 +10,54 @@ public class World : GameBehaviour {
 	
 	public static World inst;
 	
+	Location origin;
+	BitArray floorMask;
+	int maskWidth;
+	int maskHeight;
+	
+	public bool InRange(Location loc) { 
+		return loc.x >= origin.x && 
+		       loc.y >= origin.y && 
+		       loc.x < origin.x + maskWidth && 
+		       loc.y < origin.y + maskHeight; 
+	}
+	
+	public bool HasFloorTileAt(Location loc) { 
+		return InRange(loc) && floorMask[(loc - origin).Address(maskWidth)]; 
+	}	
+	
+	public bool ProperFloorTileAt(Location loc) {
+		return HasFloorTileAt(loc) && !HasFloorTileAt(loc.Above);
+	}
+	
+	public bool GetFloorExtents(Vector2 point, out Vector2 left, out Vector2 right) {
+		
+		// determine which tile this point rests on top of
+		var tileLoc = Location.FromTopCenter(point);
+		
+		if (!ProperFloorTileAt(tileLoc)) {
+			left = point;
+			right = point;
+			return false;
+		}
+		
+		var leftLoc = tileLoc;
+		while(ProperFloorTileAt(leftLoc.Left)) {
+			leftLoc = leftLoc.Left;
+		}
+		var rightLoc = tileLoc;
+		while(ProperFloorTileAt(rightLoc.Right)) {
+			rightLoc = rightLoc.Right;
+		}
+		
+		left = leftLoc.TopCenterPoint;
+		right = rightLoc.TopCenterPoint;
+		
+		return true;
+		
+	}
+		
+	
 	void Awake() {
 		inst = this;
 		InitializeFloorColliders();	
@@ -19,6 +67,8 @@ public class World : GameBehaviour {
 		if (inst == this) { inst = null; }
 	}
 	
+	
+	
 	void InitializeFloorColliders() {
 		
 		// to prevent floors with internal edges, we hash the logical locations
@@ -27,15 +77,36 @@ public class World : GameBehaviour {
 		
 		var floorObjects = GameObject.FindGameObjectsWithTag( FloorTag );
 		var locToNode = new Dictionary<Location, GameObject>();
+		
+		var minLocation = new Location(9999, 9999);
+		var maxLocation = new Location(-9999, -9999); 
+		
 		foreach(GameObject go in floorObjects) {
-			locToNode[ Location.Approx(go.transform.localPosition) ] = go;
+			var loc = Location.Approx(go.transform.localPosition);
+			if (locToNode.ContainsKey(loc)) {
+				Destroy(go);
+			} else {
+				locToNode[loc] = go;
+			}
+			minLocation = Location.Min(minLocation, loc);
+			maxLocation = Location.Max(maxLocation, loc);
 		}
+		
+		// initialize bitmask of floors
+		origin = minLocation;
+		maskWidth = maxLocation.x - minLocation.x + 1;
+		maskHeight = maxLocation.y - minLocation.y + 1;
+		floorMask = new BitArray(maskWidth * maskHeight);
+		foreach(Location loc in locToNode.Keys) {
+			floorMask[(loc - origin).Address(maskWidth)] = true;
+		}
+		
 		
 		// helper method
 		Func< KeyValuePair<Location,GameObject> > popLoc = () => {
 			var enumerator = locToNode.GetEnumerator();
 			var hasVal = enumerator.MoveNext();
-			Assert(hasVal);
+			Assert(hasVal, "Popping Location from Nonempty Hashset");
 			var result = enumerator.Current;
 			locToNode.Remove(result.Key);
 			return result;

@@ -67,7 +67,7 @@ public class GameObjectPool : CustomBehaviour {
 	
 	public T TakeOut<T>() where T : PooledObject {
 		var result = TakeOut() as T;
-		Assert(result != null);
+		Assert(result != null, "Pool Always Produces a new Instance");
 		return result;
 	}	
 	
@@ -94,12 +94,12 @@ public class GameObjectPool : CustomBehaviour {
 	
 	public T TakeOut<T>(Vector3 position) where T : PooledObject {
 		var result = TakeOut(position) as T;
-		Assert(result != null);
+		Assert(result != null, "Pool Always Produces a New Instance");
 		return result;
 	}
 	
 	public void PutBack(PooledObject obj) {
-		Assert(obj.pool == this);
+		Assert(obj.pool == this, "Instance Came from This Pool");
 
 		// prepend to the head of the linked list
 		obj.gameObject.SetActive( false );

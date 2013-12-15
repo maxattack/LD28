@@ -27,9 +27,9 @@ public class CustomBehaviour : MonoBehaviour {
 	
 	// Runtime assertions which only run in the editor
 	[Diagnostics.Conditional ("UNITY_EDITOR")]
-	public static void Assert(bool cond) { 
+	public static void Assert(bool cond, string msg) { 
 		if (!cond) {
-			Debug.LogError("Assertion Failed, Dawg");
+			Debug.LogError("Assertion Failed, Dawg: " + msg);
 			Application.Quit();
 		}
 	}
