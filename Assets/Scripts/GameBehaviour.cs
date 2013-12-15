@@ -74,6 +74,8 @@ public class GameBehaviour : CustomBehaviour {
 	public const int BackgroundMask = 1 << 8;
 	public const int ItemsLayer = 9;
 	public const int ItemsMask = 1 << 9;
+	public const int KittenTriggerLayer = 10;
+	public const int KittenTriggerMask = 1 << 10;
 	
 	public static Location Loc(int x, int y) { return new Location(x, y); }
 	

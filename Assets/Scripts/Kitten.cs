@@ -17,6 +17,9 @@ public class Kitten : Hero.Carryable {
 	// effects parameters
 	float framef = 0f;
 
+	// collision params
+	Collider2D overlap = null;
+
 	//--------------------------------------------------------------------------------
 	
 	void Awake() {
@@ -33,6 +36,22 @@ public class Kitten : Hero.Carryable {
 	
 	void Start() {
 		BeginSentry();
+	}
+	
+	void Update() {
+		
+		var p = node.position.xy() + hitbox.center;
+		var ext = 0.5f * hitbox.size;
+		var hit = Physics2D.OverlapArea(p - ext, p + ext, KittenTriggerMask);
+		if (hit) {
+			if (hit != overlap) {
+				overlap = hit;
+				hit.SendMessage("KittenTrigger");
+			}
+		} else if (overlap) {
+			overlap = null;
+		}
+		
 	}
 	
 	//--------------------------------------------------------------------------------
@@ -58,15 +77,19 @@ public class Kitten : Hero.Carryable {
 		if (body.isKinematic) { return; }
 		
 		Vector2 normal;
+		Vector2 pos;
 		if (collision.contacts[0].collider == hitbox) {
 			normal = collision.contacts[1].normal;
+			pos = collision.contacts[1].point;
 		} else {
 			normal = collision.contacts[0].normal;
+			pos = collision.contacts[0].point;
 		}
 		if (Vector2.Dot(vec(0,1), normal) > 0.95f) {
 			body.isKinematic = true;
 			Jukebox.Play("land");
-			BeginSentry();
+			var hit = Physics2D.Raycast(node.position.Above(0.01f), Vector3.down, 1f, BackgroundMask);
+			DoBeginSentry(hit ? hit.point : pos);			
 		}
 	}
 	
@@ -76,8 +99,12 @@ public class Kitten : Hero.Carryable {
 		// cast ray down to determine floor position
 		var hit = Physics2D.Raycast(node.position.Above(0.01f), Vector3.down, 1f, BackgroundMask);
 		Assert(hit, "Kitten Starts Grounded");
-		node.position = hit.point;	
-		StartCoroutine( DoSentry() );	
+		DoBeginSentry(hit.point);
+	}
+	
+	void DoBeginSentry(Vector2 p) {
+		node.position = p;	
+		StartCoroutine( DoSentry() );		
 	}
 	
 	IEnumerator DoSentry() {
@@ -86,27 +113,32 @@ public class Kitten : Hero.Carryable {
 		Vector2 sentryLeft, sentryRight;
 		World.inst.GetFloorExtents(node.position, out sentryLeft, out sentryRight);
 		
+		var dx = Mathf.Abs(sentryLeft.x - sentryRight.x);
+		if (dx < 1f) {
+			SetSprite(walkFrames[0]);
+			yield break;
+		}
+		
 		// walk from current position to the edge
+		var np = node.position.xy();
 		if (fx.localScale.x < 0) {
-			yield return StartCoroutine(WalkFromTo(node.position.xy(), sentryLeft));
+			yield return StartCoroutine(WalkFromTo(np, sentryLeft));
 			SetSprite(walkFrames[0]);
 			yield return new WaitForSeconds(0.5f);
 			goto WalkRight;
 		} else {
-			yield return StartCoroutine(WalkFromTo(node.position.xy(), sentryRight));
+			yield return StartCoroutine(WalkFromTo(np, sentryRight));
 			SetSprite(walkFrames[0]);
 			yield return new WaitForSeconds(0.5f);
 			goto WalkLeft;
 		}
 					
 		WalkRight:
-		fx.localScale = vec(1,1,1);
 		yield return StartCoroutine(WalkFromTo(sentryLeft, sentryRight));
 		SetSprite(walkFrames[0]);
 		yield return new WaitForSeconds(0.5f);
 		
 		WalkLeft:
-		fx.localScale = vec(-1,1,1);
 		yield return StartCoroutine(WalkFromTo(sentryRight, sentryLeft));
 		SetSprite(walkFrames[0]);
 		yield return new WaitForSeconds(0.5f);
@@ -115,6 +147,11 @@ public class Kitten : Hero.Carryable {
 	}
 	
 	IEnumerator WalkFromTo(Vector2 p0, Vector2 p1) {
+		if (p1.x > p0.x) {
+			fx.localScale = vec(1,1,1);
+		} else {
+			fx.localScale = vec(-1,1,1);
+		}
 		var distance = Mathf.Abs(p1.x - p0.x);
 		var duration = distance / movementSpeed;
 		framef = 1f;

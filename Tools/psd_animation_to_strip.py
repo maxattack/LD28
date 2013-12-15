@@ -30,7 +30,7 @@ def export(path):
 
 	d,f = os.path.split(path)
 	fn,fe = os.path.splitext(f)
-	result.save(os.path.join('../Assets/Sprites', "%s#%d.png" % (fn, len(psd.layers))))
+	result.save(os.path.join('../Assets/Sprites/game', "%s#%d.png" % (fn, len(psd.layers))))
 
 if __name__ == '__main__' and sys.argv > 1:
 	export( sys.argv[1] )

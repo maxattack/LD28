@@ -1,7 +1,7 @@
 // CONFIDENTIAL Copyright 2013 (C) Little Polygon LLC, All Rights Reserved.
 
 #if UNITY_EDITOR
-#define MUTE_MUSIC
+//#define MUTE_MUSIC
 #endif
 
 using UnityEngine;

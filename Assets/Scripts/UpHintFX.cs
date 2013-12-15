@@ -3,13 +3,14 @@ using System.Collections;
 
 public class UpHintFX : GameBehaviour {
 
-	Transform node;
+	// cached references
 	Transform fx;
 	SpriteRenderer spr;
+	
+	// effects parameters
 	Vector3 restPosition;
 	
 	void Awake() {
-		node = this.transform;
 		spr = GetComponentInChildren<SpriteRenderer>();
 		fx = spr.transform;
 		restPosition = fx.localPosition;

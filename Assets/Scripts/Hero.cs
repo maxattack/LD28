@@ -16,15 +16,17 @@ public class Hero : GameBehaviour {
 	public float animRate = 0.05f;
 	public Sprite[] spriteFrames;
 	public Vector2 throwVector = vec(1, 1);
+	public UpHintFX hint;
+	public ActionHintFX actionHint;
 	
 	// cached references
-	Rigidbody2D body;
+	//Rigidbody2D body;
 	BoxCollider2D hitbox;
 	Transform node;
 	Transform fx;
 	SpriteRenderer spriteFx;
+	int currFrame = 0;
 	Sprite currSprite;
-	UpHintFX hint;
 	Transform carryingRoot;
 	
 	// physics parameters
@@ -48,18 +50,19 @@ public class Hero : GameBehaviour {
 	
 	// the player has one carrying slot
 	Carryable hoveringItem = null;
-	Carryable inventoryItem = null;
+	internal Carryable inventoryItem = null;
 	
 	bool performingPickup = false;
 	
 	//--------------------------------------------------------------------------------
+	// UNITY EVENTS
 	
 	void Awake() {	
 		inst = this;
 	
-		Assert(spriteFrames.Length == 3, "Hero has Three Frames of Animation");
+		Assert(spriteFrames.Length == 6, "Hero has the correct animation");
 
-		body = GetComponent<Rigidbody2D>();
+		//body = GetComponent<Rigidbody2D>();
 		hitbox = GetComponent<BoxCollider2D>();
 		
 		node = transform;
@@ -69,15 +72,8 @@ public class Hero : GameBehaviour {
 		spriteFx = fx.GetComponent<SpriteRenderer>();
 		Assert(spriteFx, "Hero has a Sprite");
 		
-		hint = GetComponentInChildren<UpHintFX>();
-		Assert(hint != null, "Hero has a Hint UI");
-		
 		currSprite = spriteFx.sprite;
 		carryingRootRestPosition = carryingRoot.localPosition;
-	}
-	
-	void Start() {
-		hint.gameObject.SetActive(false);
 	}
 	
 	void OnDestroy() {
@@ -88,7 +84,7 @@ public class Hero : GameBehaviour {
 		var clampedDt = deltaTime;
 		TickFreefall(clampedDt);
 		TickMovement();
-		var offset = SolveMotion(speed * clampedDt);				
+		/*var offset =*/ SolveMotion(speed * clampedDt);				
 		UpdateFX();
 		if (inventoryItem == null) {
 			CheckOverlap();
@@ -99,6 +95,16 @@ public class Hero : GameBehaviour {
 	}
 	
 	//--------------------------------------------------------------------------------
+	// INPUTS
+	
+	public bool LeftButtonPressing() { return Input.GetKey(KeyCode.LeftArrow); }
+	public bool RightButtonPressing() { return Input.GetKey(KeyCode.RightArrow); }
+	public bool JumpButtonPressed() { return Input.GetKeyDown(KeyCode.LeftShift); }
+	public bool ActionButtonPressed() { return Input.GetKeyDown(KeyCode.Z); }
+	public bool CancelButtonPressed() { return Input.GetKeyDown(KeyCode.DownArrow); }
+	
+	//--------------------------------------------------------------------------------
+	// PICKUP METHODS
 	
 	void CheckOverlap() {
 		Assert(!inventoryItem, "Don't Check Overlaps when we already have inventory");
@@ -126,13 +132,15 @@ public class Hero : GameBehaviour {
 	
 	void CheckPickup() {
 		Assert(!inventoryItem, "Don't check pickups when we already have inventory");
-		if (hoveringItem != null && Input.GetKeyDown(KeyCode.UpArrow)) {
+		if (hoveringItem != null && ActionButtonPressed()) {
 			inventoryItem = hoveringItem;
 			ClearHoveringItem();
 			inventoryItem.OnPickUp();
+			actionHint.gameObject.SetActive(true);
 			performingPickup = true;
 			Jukebox.Play("pickup");
 			StartCoroutine( DoPickup() );
+			RefreshSprite();
 		}	
 	}
 	
@@ -149,15 +157,23 @@ public class Hero : GameBehaviour {
 		performingPickup = false;
 	}
 	
+	void ClearHoveringItem() {
+		if (hoveringItem != null) {
+			hint.gameObject.SetActive(false);
+			hoveringItem = null;
+		}
+	}
+		
 	//--------------------------------------------------------------------------------
+	// ACTION METHODS
 	
 	void CheckUseItem() {
 		Assert(inventoryItem, "Don't check use items if there's nothing to utilize");
 		if (!performingPickup) {
-			if (Input.GetKeyDown(KeyCode.Z)) {
+			if (ActionButtonPressed()) {
 				Jukebox.Play("throw");
 				PopInventoryItem().OnThrow();
-			} else if (grounded && Input.GetKeyDown(KeyCode.DownArrow)) {
+			} else if (grounded && CancelButtonPressed()) {
 				performingPickup = true;
 				Jukebox.Play("put");
 				StartCoroutine(DoPutDown());
@@ -183,23 +199,16 @@ public class Hero : GameBehaviour {
 		var result = inventoryItem;
 		inventoryItem.node.parent = null;
 		inventoryItem = null;
+		RefreshSprite();
 		return result;
 	}
 		
 	//--------------------------------------------------------------------------------
-	
-	void ClearHoveringItem() {
-		if (hoveringItem != null) {
-			hint.gameObject.SetActive(false);
-			hoveringItem = null;
-		}
-	}
-		
-	//--------------------------------------------------------------------------------
+	// MOVEMENT TICKS
 
 	void TickFreefall(float dt) {
 		var gravity = Physics2D.gravity.y;
-		if(grounded && Input.GetKeyDown(KeyCode.LeftShift)) {
+		if(grounded && JumpButtonPressed()) {
 			Jukebox.Play("jump");
 			speed.y = Mathf.Sqrt( -2f * gravity * jumpHeight );
 		} else {
@@ -207,14 +216,12 @@ public class Hero : GameBehaviour {
 		}		
 	}
 	
-	//--------------------------------------------------------------------------------
-	
 	void TickMovement() {
-		if (Input.GetKey(KeyCode.LeftArrow)) {
+		if (LeftButtonPressing()) {
 			speed.x = speed.x.EaseTowards(-movementSpeed, 0.2f);
 			fx.localScale = vec(-1, 1, 1);
 			if (inventoryItem) { inventoryItem.fx.localScale = vec(-1,1,1); }
-		} else if (Input.GetKey(KeyCode.RightArrow)) {
+		} else if (RightButtonPressing()) {
 			speed.x = speed.x.EaseTowards(movementSpeed, 0.2f);
 			fx.localScale = vec(1, 1, 1);
 			if (inventoryItem) { inventoryItem.fx.localScale = vec(1,1,1); }
@@ -222,8 +229,6 @@ public class Hero : GameBehaviour {
 			speed.x = speed.x.EaseTowards(0, 0.2f);
 		}		
 	}
-	
-	//--------------------------------------------------------------------------------
 	
 	Vector3 SolveMotion(Vector2 offset) {
 		// separate axis updating - first we slide along the Y-axis, then
@@ -290,11 +295,11 @@ public class Hero : GameBehaviour {
 		}
 			
 		node.position = p1;
-		
 		return p1 - p0;
 	}
 	
 	//--------------------------------------------------------------------------------
+	// VISUAL EFFECTS
 	
 	void UpdateFX() {
 		if (grounded) {
@@ -302,7 +307,7 @@ public class Hero : GameBehaviour {
 			var sx = Mathf.Abs(speed.x);
 			if (sx > 0.2f) {
 				framef += animRate * sx;
-				framef %= (float)spriteFrames.Length;
+				framef %= 3f;
 				int fr = Mathf.FloorToInt(framef);
 				if (SetSprite(fr) && fr == 0) {
 					Jukebox.Play("footfall");
@@ -319,16 +324,24 @@ public class Hero : GameBehaviour {
 		}		
 	}
 	
-	//--------------------------------------------------------------------------------
+	bool RefreshSprite() {
+		return SetSprite(currFrame);
+	}
 	
 	bool SetSprite(int frame) {
+		currFrame = frame;
+	
+		if (inventoryItem != null) {
+			frame += 3;
+		}
+
 		// I don't know if this optimization really matters,
 		// but whatevs.  
 		if (currSprite != spriteFrames[frame]) {
 			currSprite = spriteFrames[frame];
 			spriteFx.sprite = currSprite;
 			carryingRoot.localPosition = 
-				carryingRootRestPosition + vec(0, frame/12f, 0);
+				carryingRootRestPosition + vec(0, (frame%3)/12f, 0);
 			return true;
 		} else {
 			return false;
