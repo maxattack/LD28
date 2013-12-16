@@ -3,11 +3,13 @@ using System.Collections;
 
 public class Apology : GameBehaviour {
 	public GameObject blocker;
+	public GameObject nextBlocker;
 	
 	public void KittenTrigger() {
 		if (Hero.inst.inventoryItem == null) { return; }
 		Jukebox.Play("put");
 		blocker.SetActive(true);
+		nextBlocker.SetActive(false);
 		StartCoroutine(DoPan());
 		Destroy(collider2D);
 	}
