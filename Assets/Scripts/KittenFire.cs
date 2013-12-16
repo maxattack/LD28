@@ -17,11 +17,11 @@ public class KittenFire : GameBehaviour {
 			float u = Time.realtimeSinceStartup - startTime;
 			Time.timeScale = 1 - EaseOut4(u);
 			Camera.main.backgroundColor = Color.Lerp(baseColor, Color.red, EaseOut2(u));
-			cnode.position = cameraRest + vec(0, 8f * EaseOut2(u), 0);
+			cnode.position = cameraRest + vec(0, 10f * EaseOut2(u), 0);
 			yield return null;
 		}
 		Camera.main.backgroundColor = Color.red;
-		cnode.position = cameraRest + vec(0, 8, 0);
+		cnode.position = cameraRest + vec(0, 10, 0);
 		
 		while(!(Input.GetKeyDown(KeyCode.Return) || Input.GetKeyDown(KeyCode.KeypadEnter))) {
 			yield return null;
