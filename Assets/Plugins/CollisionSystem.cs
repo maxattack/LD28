@@ -84,9 +84,9 @@ public struct Collision {
 //--------------------------------------------------------------------------------
 
 public class CollisionSystem : CustomBehaviour {
-	public int slotCount = 128;    // max # of collider slots
-	public int bucketCount = 128;  // trades storage for performance in broad-phase
-	public int contactCount = 128; 
+	public int slotCount = 1024;    // max # of collider slots
+	public int bucketCount = 1024;  // trades storage for performance in broad-phase
+	public int contactCount = 1024; // overflow will cause an assert-fail 
 
 	// structure-of-arrays backing store
 	Bitset freeSlots;
