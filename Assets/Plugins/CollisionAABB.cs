@@ -21,6 +21,7 @@ public class CollisionAABB : CustomBehaviour {
 
 	public Rect localBoundingBox;
 	public LayerMask collisionMask;
+	public LayerMask triggerMask;
 	int colliderId;
 	Transform node;
 	CollisionSystem context;
@@ -50,7 +51,7 @@ public class CollisionAABB : CustomBehaviour {
 			new AABB() { p0 = p0, p1 = p1 },
 			0x00000001 << gameObject.layer, 
 			collisionMask.value,
-			0,
+			triggerMask.value,
 			this
 		);
 
