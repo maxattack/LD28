@@ -106,15 +106,13 @@ public class CollisionSystem : CustomBehaviour {
 		if (!inst) {
 			// was one placed in the scene?
 			inst = FindObject<CollisionSystem>();
-			if (!inst.initSentinel) {
-				inst.Awake(); // monkeypatch race-condition
-			}
 		}
 		if (!inst) {
 			// okay, make one dynamically
 			inst = new GameObject("CollisionSystem", typeof(CollisionSystem))
 				.GetComponent<CollisionSystem>();
 		}
+		inst.Awake (); // monkeypatch order-of-init race conditions
 		return inst;
 	}
 
