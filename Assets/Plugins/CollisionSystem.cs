@@ -50,6 +50,11 @@ public struct AABB {
 	public float Top { get { return p0.y; } }
 	public float Bottom { get { return p1.y; } }
 
+	public void Translate(Vector2 offset) {
+		p0 += offset;
+		p1 += offset;
+	}
+
 	public bool Overlaps(AABB box) {
 		return  p0.x < box.p1.x && p1.x > box.p0.x &&
 		        p0.y < box.p1.y && p1.y > box.p0.y ;
@@ -110,6 +115,9 @@ public class CollisionSystem : CustomBehaviour {
 	}
 
 	void Awake() {
+
+		// block-allocate backing store.  Each of these arrays are of value-types
+		// and are compact in memory, so everything should be speedy to look up.
 		slotCount += slotCount % 32;
 		bucketCount += bucketCount % 32;
 		contactCount += contactCount % 32;
@@ -125,11 +133,12 @@ public class CollisionSystem : CustomBehaviour {
 		contacts = new Contact[contactCount];
 		contactScratch = new Bitset(contactCount);
 		oldToNewScratch = new int[contactCount];
+
 	}
 	
 
 	// Add a new collider to the system.  Everything is block allocated, so this is
-	// really just flipping a bit.
+	// really just flipping a bit and intializing some fields.
 	public int AddCollider(AABB box, int categoryMask, int collisionMask, int triggerMask, object userData=null) {
 		int result;
 		freeSlots.ClearFirst(out result);
@@ -145,16 +154,26 @@ public class CollisionSystem : CustomBehaviour {
 
 	// Parameters getters for individual colliders
 	public AABB GetBounds(int id) { return slots[id].box; }
+
 	public void SetBounds(int id, AABB box) {
 		Unhash (id);
 		slots[id].box = box;
 		Hash(id);
 	}
 
+	public int GetCategoryMask(int id) { return slots[id].categoryMask; }
+	public void SetCategoryMask(int id, int mask) { slots[id].categoryMask = mask; }
+	public int GetCollisionMask(int id) { return slots[id].collisionMask; }
+	public void SetCollisionMask(int id, int mask) { slots[id].collisionMask = mask; }
+	public int GetTriggerMask(int id) { return slots[id].triggerMask; }
+	public void SetTriggerMask(int id, int mask) { slots[id].triggerMask = mask; }
 	public object GetUserData(int id) { return slots[id].userData; }
 	public void SetUserData(int id, object data) { slots[id].userData = data; }
 
+	// Enumerates boxes which overlap the given box, filtered by their category.
 	IEnumerable<int> QueryColliders(AABB box, int mask) {
+
+		// iterate through broad phase candidates looking for matches
 		BroadPhase(box);
 		var lister = new Bitset.BitLister(broadphaseCandidates);
 		int slot;
@@ -163,8 +182,11 @@ public class CollisionSystem : CustomBehaviour {
 				yield return slot;
 			}
 		}
+
 	}
 
+	// Enumerate differences between the current trigger-status of the given collider,
+	// and the last time that this method was invoked.
 	IEnumerable<TriggerEvent> QueryTriggers(int id) {
 
 		// identify relevant contacts
@@ -175,6 +197,7 @@ public class CollisionSystem : CustomBehaviour {
 			}
 		}
 
+		// Iterate through actual overlaps
 		BroadPhase(slots[id].box);
 		var lister = new Bitset.BitLister(broadphaseCandidates);
 		int slot;
@@ -217,6 +240,7 @@ public class CollisionSystem : CustomBehaviour {
 	}
 
 	int FindTrigger(int trigger) {
+		// Private helper function for QueryTriggers
 		var lister = new Bitset.BitLister(contactScratch);
 		int idx;
 		while(lister.Next(out idx)) {
@@ -315,7 +339,6 @@ public class CollisionSystem : CustomBehaviour {
 
 		// rehash the new bounding box
 		Hash (id);
-
 		return result;
 	}
 
@@ -384,8 +407,7 @@ public class CollisionSystem : CustomBehaviour {
 	}
 
 	void BroadPhase(AABB sweep) {
-		// union all the sectors that this box overlaps to identify
-		// likely collisions
+		// union all the sectors that this box overlaps to identify likely collisions
 		int minX = Mathf.RoundToInt(sweep.p0.x);
 		int minY = Mathf.RoundToInt(sweep.p0.y);
 		int maxX = Mathf.RoundToInt(sweep.p1.x);
