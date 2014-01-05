@@ -145,7 +145,13 @@ public class CollisionSystem : CustomBehaviour {
 
 	// Add a new collider to the system.  Everything is block allocated, so this is
 	// really just flipping a bit and intializing some fields.
-	public int AddCollider(AABB box, int categoryMask, int collisionMask, int triggerMask, object userData=null) {
+	public int AddCollider(
+		AABB box,              // bounds in world-space
+		int categoryMask,      // fingerprint
+		int collisionMask,     // which categories do I collide with?
+		int triggerMask,       // which categoires do I track overlap with?
+		object userData=null   // handy back-reference from colliders to game-objects
+	) {
 		int result;
 		freeSlots.ClearFirst(out result);
 		slots[result].box = box;
