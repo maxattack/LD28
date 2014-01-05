@@ -39,8 +39,6 @@ using UnityEngine;
 //
 //--------------------------------------------------------------------------------
 
-// TODO: Port QueryBox and QueryTriggers from original C++ source
-
 public struct AABB {
 	public Vector2 p0;
 	public Vector2 p1;
@@ -59,12 +57,12 @@ public struct AABB {
 }
 
 enum TriggerEventType {
-	Enter, Exit
+	Enter, Stay, Exit
 }
 
 struct TriggerEvent {
-	TriggerEventType type;
-	int triggerId;
+	public TriggerEventType type;
+	public int trigger;
 }
 
 public struct Collision {
@@ -83,12 +81,17 @@ public struct Collision {
 public class CollisionSystem : CustomBehaviour {
 	public int slotCount = 128;    // max # of collider slots
 	public int bucketCount = 128;  // trades storage for performance in broad-phase
+	public int contactCount = 128; 
 
 	// structure-of-arrays backing store
 	Bitset freeSlots;
 	Bitset broadphaseCandidates;
 	Collider[] slots;
 	Bitset[] buckets;
+	int nContacts;
+	Contact[] contacts;
+	Bitset contactScratch;
+	int[] oldToNewScratch;
 
 	// singleton (bad assumption?)
 	static CollisionSystem inst;
@@ -109,6 +112,7 @@ public class CollisionSystem : CustomBehaviour {
 	void Awake() {
 		slotCount += slotCount % 32;
 		bucketCount += bucketCount % 32;
+		contactCount += contactCount % 32;
 		freeSlots = new Bitset(slotCount);
 		broadphaseCandidates = new Bitset(slotCount);
 		slots = new Collider[slotCount];
@@ -117,6 +121,10 @@ public class CollisionSystem : CustomBehaviour {
 		for(int i=0; i<bucketCount; ++i) {
 			buckets[i] = new Bitset(slotCount);
 		}
+		nContacts = 0;
+		contacts = new Contact[contactCount];
+		contactScratch = new Bitset(contactCount);
+		oldToNewScratch = new int[contactCount];
 	}
 	
 
@@ -147,13 +155,76 @@ public class CollisionSystem : CustomBehaviour {
 	public void SetUserData(int id, object data) { slots[id].userData = data; }
 
 	IEnumerable<int> QueryColliders(AABB box, int mask) {
-		// todo
-		yield break;
+		BroadPhase(box);
+		var lister = new Bitset.BitLister(broadphaseCandidates);
+		int slot;
+		while(lister.Next(out slot)) {
+			if ((slots[slot].categoryMask & mask) != 0 && slots[slot].box.Overlaps(box)) {
+				yield return slot;
+			}
+		}
 	}
 
 	IEnumerable<TriggerEvent> QueryTriggers(int id) {
-		// todo
-		yield break;
+
+		// identify relevant contacts
+		contactScratch.Clear();
+		for(int i=0; i<nContacts; ++i) {
+			if (contacts[i].collider == id) {
+				contactScratch.Mark(i);
+			}
+		}
+
+		BroadPhase(slots[id].box);
+		var lister = new Bitset.BitLister(broadphaseCandidates);
+		int slot;
+		while(lister.Next (out slot)) {
+			if (slots[id].Triggers(ref slots[slot])) {
+				int i = FindTrigger(slot);
+				contactScratch.Clear(i);
+				if (i < nContacts) {
+					yield return new TriggerEvent() {
+						type = TriggerEventType.Stay, trigger = slot
+					};
+				} else {
+					Assert(nContacts < contactCount, "Contacts are within capacity");
+					nContacts++;
+					contacts[i].collider = id;
+					contacts[i].trigger = slot;
+					yield return new TriggerEvent() {
+						type = TriggerEventType.Enter, trigger = slot
+					};
+				}
+			}
+		}
+
+		// find exit triggers
+		for(int i=0; i<nContacts; ++i) {
+			oldToNewScratch[i] = i;
+		}
+		int contactIndex;
+		while(contactScratch.ClearFirst(out contactIndex)) {
+			int actualIndex = oldToNewScratch[contactIndex];
+			yield return new TriggerEvent() {
+				type = TriggerEventType.Exit, trigger = contacts[actualIndex].trigger
+			};
+			--nContacts;
+			if (actualIndex < nContacts) {
+				contacts[actualIndex] = contacts[nContacts];
+				oldToNewScratch[nContacts] = actualIndex;
+			}
+		}
+	}
+
+	int FindTrigger(int trigger) {
+		var lister = new Bitset.BitLister(contactScratch);
+		int idx;
+		while(lister.Next(out idx)) {
+			if (contacts[idx].trigger == trigger) {
+				return idx;
+			}
+		}
+		return nContacts;
 	}
 
 
@@ -251,7 +322,23 @@ public class CollisionSystem : CustomBehaviour {
 	// Deallocate the collide from the system, removing any relevant
 	// contacts with others.
 	public void RemoveCollider(int id) {
+
+		// remove relevant contacts
+		int i = nContacts;
+		while(i>0) {
+			--i;
+			if (contacts[i].collider == id || contacts[i].trigger == id) {
+				if (i != nContacts-1) {
+					contacts[i] = contacts[nContacts-1];
+				}
+				--nContacts;
+			}
+		}
+
+		// deallocate slot
+		Unhash(id);
 		freeSlots.Mark(id);
+
 	}
 
 	// spatial hashing methods.  We decouple the logical grid-sectors (which may
@@ -310,8 +397,8 @@ public class CollisionSystem : CustomBehaviour {
 		}
 	}
 
-	// Internal record-keeping struct 
-	// (refactor into structure-of-arrays for better cache coherence?)
+	// Internal record-keeping structs
+
 	struct Collider {
 		public AABB box;
 		public int categoryMask;
@@ -327,6 +414,11 @@ public class CollisionSystem : CustomBehaviour {
 			return (triggerMask & c.categoryMask) != 0 && box.Overlaps(c.box);
 		}
 
+	}
+
+	struct Contact {
+		public int collider;
+		public int trigger;
 	}
 
 	#if UNITY_EDITOR
