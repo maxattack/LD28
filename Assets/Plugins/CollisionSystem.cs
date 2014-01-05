@@ -120,6 +120,10 @@ public class CollisionSystem : CustomBehaviour {
 
 	void Awake() {
 
+		if (initSentinel) {
+			return;
+		}
+
 		// block-allocate backing store.  Each of these arrays are of value-types
 		// and are compact in memory, so everything should be speedy to look up.
 		slotCount += slotCount % 32;
