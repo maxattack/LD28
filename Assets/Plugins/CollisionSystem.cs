@@ -337,8 +337,7 @@ public class CollisionSystem : CustomBehaviour {
 			
 		// render bounding box in local frame
 		Gizmos.color = Color.yellow;
-		var occupiedSlots = new Bitset(freeSlots.Size);
-		occupiedSlots.Union(freeSlots);
+		var occupiedSlots = freeSlots.Clone ();
 		occupiedSlots.Negate();
 		foreach(var slot in occupiedSlots.ListBits()) {
 			var box = GetBounds(slot);

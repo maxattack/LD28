@@ -75,7 +75,7 @@ public class Bitset {
 	}
 	
 	public int Size { get { return 32 * words.Length; } }
-	
+
 	public void Mark(int index) {
 		int word = index >> 5;
 		int bit = index & 31;
@@ -134,7 +134,19 @@ public class Bitset {
 			return c;
 		}
 	}
-	
+
+	public Bitset Clone() {
+		var result = new Bitset(Size);
+		result.nonzeroWords = nonzeroWords;
+		int remainder = nonzeroWords;
+		while(remainder != 0) {
+			int w = clz(remainder);
+			remainder ^= lz(w);
+			result.words[w] = words[w];
+		}
+		return result;
+	}
+
 	public bool FindFirst(out int index) {
 		if (nonzeroWords != 0) {
 			int w = clz (nonzeroWords);
