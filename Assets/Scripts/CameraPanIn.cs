@@ -4,7 +4,7 @@ using System.Collections;
 public class CameraPanIn : GameBehaviour {
 
 	IEnumerator Start () {
-		if (Application.isEditor) {
+		if (!Application.isEditor) {
 			var onlyOne = GameObject.Find("OnlyOne");
 			onlyOne.SetActive(false);
 			var camNode = Camera.main.transform;

@@ -21,7 +21,7 @@ public class Hero : GameBehaviour {
 	
 	// cached references
 	//Rigidbody2D body;
-	BoxCollider2D hitbox;
+	CollisionAABB box;
 	Transform node;
 	Transform fx;
 	SpriteRenderer spriteFx;
@@ -58,12 +58,12 @@ public class Hero : GameBehaviour {
 	// UNITY EVENTS
 	
 	void Awake() {	
+
 		inst = this;
 	
 		Assert(spriteFrames.Length == 6, "Hero has the correct animation");
 
-		//body = GetComponent<Rigidbody2D>();
-		hitbox = GetComponent<BoxCollider2D>();
+		box = GetComponent<CollisionAABB>();
 		
 		node = transform;
 		carryingRoot = node.Find("CarryingRoot");
@@ -84,11 +84,15 @@ public class Hero : GameBehaviour {
 		var clampedDt = deltaTime;
 		TickFreefall(clampedDt);
 		TickMovement();
-		/*var offset =*/ SolveMotion(speed * clampedDt);				
+		var collision = box.Move(speed * clampedDt);
+		grounded = collision.hitBottom;
+		if (grounded) {
+			speed.y = 0;
+		}
 		UpdateFX();
 		if (inventoryItem == null) {
 			CheckOverlap();
-			CheckPickup();			
+//			CheckPickup();			
 		} else {
 			CheckUseItem();
 		}
@@ -107,63 +111,63 @@ public class Hero : GameBehaviour {
 	// PICKUP METHODS
 	
 	void CheckOverlap() {
-		Assert(!inventoryItem, "Don't Check Overlaps when we already have inventory");
-		// query for items
-		var p = node.position.xy() + hitbox.center;
-		var extent = 0.5f * hitbox.size;
-		var bottomLeft = p - extent;
-		var topRight = p + extent;
-		int hitCount = Physics2D.OverlapAreaNonAlloc(bottomLeft, topRight, queryBuffer, ItemsMask);
-		
-		// just consider the first result
-		if (hitCount > 0) {
-			var item = queryBuffer[0].GetComponent<Carryable>();
-			Assert(item, "Hero only Queries Carryables");			
-			if (item != hoveringItem) {
-				hoveringItem = item;
-				hint.gameObject.SetActive(true);
-			}			
-		} else {
-			ClearHoveringItem();
-		}
-		
-		
+//		Assert(!inventoryItem, "Don't Check Overlaps when we already have inventory");
+//		// query for items
+//		var p = node.position.xy() + hitbox.center;
+//		var extent = 0.5f * hitbox.size;
+//		var bottomLeft = p - extent;
+//		var topRight = p + extent;
+//		int hitCount = Physics2D.OverlapAreaNonAlloc(bottomLeft, topRight, queryBuffer, ItemsMask);
+//		
+//		// just consider the first result
+//		if (hitCount > 0) {
+//			var item = queryBuffer[0].GetComponent<Carryable>();
+//			Assert(item, "Hero only Queries Carryables");			
+//			if (item != hoveringItem) {
+//				hoveringItem = item;
+//				hint.gameObject.SetActive(true);
+//			}			
+//		} else {
+//			ClearHoveringItem();
+//		}
+//		
+//		
 	}
 	
-	void CheckPickup() {
-		Assert(!inventoryItem, "Don't check pickups when we already have inventory");
-		if (hoveringItem != null && ActionButtonPressed()) {
-			inventoryItem = hoveringItem;
-			ClearHoveringItem();
-			inventoryItem.OnPickUp();
-			actionHint.gameObject.SetActive(true);
-			performingPickup = true;
-			Jukebox.Play("pickup");
-			StartCoroutine( DoPickup() );
-			RefreshSprite();
-		}	
-	}
-	
-	IEnumerator DoPickup() {
-		inventoryItem.node.parent = carryingRoot;
-		inventoryItem.fx.localScale = fx.localScale;
-		var p0 = inventoryItem.node.localPosition;
-		var p1 = vec(0,0,0);
-		foreach(var u in Interpolate(0.5f)) {
-			float uu = EaseOut2(u);
-			inventoryItem.node.localPosition = Vector2.Lerp(p0, p1, uu) + vec(0, Parabola(uu));
-			yield return null;
-		}
-		performingPickup = false;
-	}
-	
-	void ClearHoveringItem() {
-		if (hoveringItem != null) {
-			hint.gameObject.SetActive(false);
-			hoveringItem = null;
-		}
-	}
-		
+//	void CheckPickup() {
+//		Assert(!inventoryItem, "Don't check pickups when we already have inventory");
+//		if (hoveringItem != null && ActionButtonPressed()) {
+//			inventoryItem = hoveringItem;
+//			ClearHoveringItem();
+//			inventoryItem.OnPickUp();
+//			actionHint.gameObject.SetActive(true);
+//			performingPickup = true;
+//			Jukebox.Play("pickup");
+//			StartCoroutine( DoPickup() );
+//			RefreshSprite();
+//		}	
+//	}
+//	
+//	IEnumerator DoPickup() {
+//		inventoryItem.node.parent = carryingRoot;
+//		inventoryItem.fx.localScale = fx.localScale;
+//		var p0 = inventoryItem.node.localPosition;
+//		var p1 = vec(0,0,0);
+//		foreach(var u in Interpolate(0.5f)) {
+//			float uu = EaseOut2(u);
+//			inventoryItem.node.localPosition = Vector2.Lerp(p0, p1, uu) + vec(0, Parabola(uu));
+//			yield return null;
+//		}
+//		performingPickup = false;
+//	}
+//	
+//	void ClearHoveringItem() {
+//		if (hoveringItem != null) {
+//			hint.gameObject.SetActive(false);
+//			hoveringItem = null;
+//		}
+//	}
+//		
 	//--------------------------------------------------------------------------------
 	// ACTION METHODS
 	
@@ -228,74 +232,6 @@ public class Hero : GameBehaviour {
 		} else {
 			speed.x = speed.x.EaseTowards(0, 0.2f);
 		}		
-	}
-	
-	Vector3 SolveMotion(Vector2 offset) {
-		// separate axis updating - first we slide along the Y-axis, then
-		// along the X-axis.  In each case "sliding" means testing the target
-		// position, and resolving collisions by snapping to the edge.
-		
-		// (making the assumption that all background layer colliders have no
-		// rotation.)
-		
-		var p0 = node.position.xy();
-		
-		var center = hitbox.center;
-		var extent = 0.5f * hitbox.size;
-		
-		// hack - avoid "ground jitter"
-		if (offset.y < 0 && offset.y > -collisionSlop) {
-			offset.y -= collisionSlop;
-		}
-
-		// Solve Y-axis
-		
-		grounded = false; // recomputed every time we solve the y-axis
-		
-		var p1 = node.position.xy() + vec(0f, offset.y);
-		var bottomLeft = p1 + center - extent;
-		var topRight = p1 + center + extent;		
-		var ycollider = Physics2D.OverlapArea(bottomLeft, topRight, BackgroundMask) as BoxCollider2D;
-		if (ycollider) {
-			speed.y = 0;
-			var y = ycollider.transform.position.y + ycollider.center.y;
-			if (offset.y < 0f) {	
-				// going down, check the top of the collider			
-				var top = y + 0.5f * ycollider.size.y + collisionSlop;
-				p1.y = top - center.y + extent.y;
-				grounded = true;
-			} else {
-				// going up, check the bottom of the collider
-				var bottom = y - 0.5f * ycollider.size.y - collisionSlop;
-				p1.y = bottom - center.y - extent.y;				
-			}
-		}
-		
-		// Solve X-axis
-		
-		if (!Mathf.Approximately(offset.x, 0)) {
-			p1.x += offset.x;
-			bottomLeft = p1 + center - extent;
-			topRight = p1 + center + extent;		
-			
-			var xcollider = Physics2D.OverlapArea(bottomLeft, topRight, BackgroundMask) as BoxCollider2D;
-			if (xcollider) {
-				speed.x = 0;
-				var x = xcollider.transform.position.x + xcollider.center.x;
-				if (offset.x < 0f) {
-					// going left, check right side of collider
-					var right = x + 0.5f * xcollider.size.x + collisionSlop;
-					p1.x = right - center.x + extent.x;
-				} else {			
-					// going right, check the left side of the collider
-					var left = x - 0.5f * xcollider.size.x - collisionSlop;
-					p1.x = left - center.x - extent.x;
-				}
-			}
-		}
-			
-		node.position = p1;
-		return p1 - p0;
 	}
 	
 	//--------------------------------------------------------------------------------

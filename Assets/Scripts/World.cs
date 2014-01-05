@@ -111,7 +111,9 @@ public class World : GameBehaviour {
 			locToNode.Remove(result.Key);
 			return result;
 		};
-		
+
+		var cs = CollisionSystem.GetInstance();
+
 		while(locToNode.Count > 0) {
 			var kvp = popLoc();
 			var xmin = kvp.Key.x;
@@ -129,9 +131,20 @@ public class World : GameBehaviour {
 				locToNode.Remove( Loc(++xmax, y) );
 			}
 			// create the box
-			var box = obj.AddComponent<BoxCollider2D>();
-			box.size = vec(1 + xmax - xmin, 1f);//, 2);
-			box.center = vec(0.5f * box.size.x - 0.5f, 0f);//, 0);
+//			var box = obj.AddComponent<BoxCollider2D>();
+//			box.size = vec(1 + xmax - xmin, 1f);//, 2);
+//			box.center = vec(0.5f * box.size.x - 0.5f, 0f);//, 0);
+
+			var objPos = obj.transform.position.xy () - vec (0.5f, 0.5f);
+			var objSize = vec (1 + xmax - xmin, 1f);
+
+			cs.AddCollider(
+				new AABB() {
+					p0 = objPos,
+					p1 = objPos + objSize
+				}, 
+				BackgroundMask, 0, 0
+			);
 		}
 		
 	}
