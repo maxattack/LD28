@@ -69,7 +69,7 @@ public class Bitset {
 		// don't want to deal with "remainders"
 		LP.Assert(aCapacity > 0, "Capacity is Nonzero");
 		LP.Assert(aCapacity % 32 == 0, "Capacity is a Multiple of 32");
-		LP.Assert(aCapacity < 32 * 32, "Capacity is at most 1024");
+		LP.Assert(aCapacity <= 32 * 32, "Capacity is at most 1024");
 		words = new int[ aCapacity/32 ];
 		nonzeroWords = 0;
 	}
