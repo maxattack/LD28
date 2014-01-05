@@ -97,6 +97,7 @@ public class CollisionSystem : CustomBehaviour {
 	Contact[] contacts;
 	Bitset contactScratch;
 	int[] oldToNewScratch;
+	bool initSentinel = false;
 
 	// singleton (bad assumption?)
 	static CollisionSystem inst;
@@ -105,6 +106,9 @@ public class CollisionSystem : CustomBehaviour {
 		if (!inst) {
 			// was one placed in the scene?
 			inst = FindObject<CollisionSystem>();
+			if (!inst.initSentinel) {
+				inst.Awake(); // monkeypatch race-condition
+			}
 		}
 		if (!inst) {
 			// okay, make one dynamically
@@ -133,6 +137,8 @@ public class CollisionSystem : CustomBehaviour {
 		contacts = new Contact[contactCount];
 		contactScratch = new Bitset(contactCount);
 		oldToNewScratch = new int[contactCount];
+
+		initSentinel = true;
 
 	}
 	
